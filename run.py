@@ -3,6 +3,7 @@ PlanGuard Universal Production Launcher
 Boots the FastAPI + Uvicorn engine with automatic fallback.
 """
 
+import importlib.util
 import sys
 import subprocess
 from pathlib import Path
@@ -17,10 +18,8 @@ if __name__ == "__main__":
     print(f"  Root: {ROOT_DIR}")
     print("========================================================\n")
     
-    try:
-        import uvicorn
-        import fastapi
+    if importlib.util.find_spec("uvicorn") and importlib.util.find_spec("fastapi"):
         subprocess.run([sys.executable, str(FASTAPI_SCRIPT)] + sys.argv[1:])
-    except ImportError:
+    else:
         print("[Notice] FastAPI/Uvicorn not found, running via Python Standard Async Server...")
         subprocess.run([sys.executable, str(FALLBACK_SCRIPT)] + sys.argv[1:])
