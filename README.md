@@ -72,6 +72,10 @@ planguard/
 └── README.md                  # System architecture, pitch script, and specification
 ```
 
+## Jurisdiction coverage
+
+The jurisdiction selector includes U.S. presets and a Canada national model-code screening option. Canadian results use metric screening values and are not a substitute for checking the code edition and accessibility requirements adopted by the relevant province or territory, including local amendments.
+
 ---
 
 ## 🚀 How to Run PlanGuard Enterprise

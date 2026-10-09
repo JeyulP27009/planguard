@@ -1,6 +1,6 @@
 """
 PlanGuard Deterministic Regulatory Compliance Engine
-Strict evaluation of 2024 International Building Code (IBC) and 2010/2024 ADA Standards.
+Geometric screening against the active jurisdiction's regulatory matrix.
 """
 
 from typing import Dict, List, Any, Optional
@@ -22,8 +22,16 @@ class ComplianceEngine:
         """
         jurisdiction = JURISDICTIONS.get(jurisdiction_key, JURISDICTIONS["national_ibc"])
         j_rules = jurisdiction["rules"]
+        is_canada = jurisdiction_key == "canada_national"
+
+        def length_label(inches: float) -> str:
+            if is_canada:
+                return f"{round(inches * 25.4)} mm"
+            return f'{inches:.1f}"'
+
         violations = []
         passed_checks = []
+        review_required = []
         
         preset_id = blueprint_data.get("id", "")
         
@@ -41,11 +49,11 @@ class ComplianceEngine:
                 # If remediated, the door swings outward (no intrusion)
                 if is_remediated:
                     passed_checks.append({
-                        "code": "ADAAG § 404.2.4",
-                        "title": "Restroom Turning Clearance",
+                        "code": j_rules["restroom_door"]["citation"] if is_canada else "ADAAG § 404.2.4",
+                        "title": j_rules["restroom_door"]["title"] if is_canada else "Restroom Turning Clearance",
                         "status": "PASSED",
-                        "measured": "0.0\" intrusion (outward swing)",
-                        "target": "0.0\" max encroachment"
+                        "measured": f"0 { 'mm' if is_canada else 'in' } intrusion (outward swing)",
+                        "target": "No turning-space intrusion; verify local maneuvering clearances" if is_canada else "0.0\" max encroachment"
                     })
                 else:
                     # Door swings inward (0 to 90 degrees)
@@ -53,49 +61,59 @@ class ComplianceEngine:
                     if encroached or preset_id == "coffee_shop":
                         violations.append({
                             "id": "VIOLATION_ADA_404_2_4",
-                            "code": "ADAAG § 404.2.4 & § 604.3.1",
-                            "title": "Door Swing Encroachment into 60\" Turning Space",
+                            "code": j_rules["restroom_door"]["citation"] if is_canada else "ADAAG § 404.2.4 & § 604.3.1",
+                            "title": j_rules["restroom_door"]["title"] if is_canada else "Door Swing Encroachment into 60\" Turning Space",
                             "category": "ADA Accessibility",
                             "severity": "CRITICAL",
-                            "measured": "9.4\" intrusion into required clear circle",
-                            "target": "0.0\" max encroachment permitted",
-                            "delta": "-9.4\"",
-                            "citation": "Doors shall not swing into the required 60-inch minimum diameter clear turning space in single-occupant accessible toilet rooms.",
-                            "remedy": "Reverse door swing outward into the service corridor."
+                            "measured": f"{length_label(9.4)} intrusion into required clear circle",
+                            "target": "No turning-space intrusion; verify local maneuvering clearances" if is_canada else "0.0\" max encroachment permitted",
+                            "delta": f"-{length_label(9.4)}",
+                            "citation": j_rules["restroom_door"]["standard"] if is_canada else "Doors shall not swing into the required 60-inch minimum diameter clear turning space in single-occupant accessible toilet rooms.",
+                            "remedy": j_rules["restroom_door"]["remedy"] if is_canada else "Reverse door swing outward into the service corridor."
                         })
 
         # --- Check 2: Corridor Minimum Width (2024 IBC § 1020.2) ---
         if "corridorMeasurement" in blueprint_data:
             cm = blueprint_data["corridorMeasurement"]
             measured_val = 44.5 if is_remediated else 34.2
-            required_val = 44.0
+            required_val = jurisdiction.get("min_corridor_inches", 44.0)
+            required_display = "1100 mm" if is_canada else f"{required_val:.1f}\""
             
             if measured_val < required_val:
                 violations.append({
                     "id": "VIOLATION_IBC_1020_2",
-                    "code": "2024 IBC § 1020.2",
-                    "title": "Corridor Width Below Egress Minimum",
+                    "code": j_rules["corridor_width"]["citation"] if is_canada else "2024 IBC § 1020.2",
+                    "title": j_rules["corridor_width"]["title"] if is_canada else "Corridor Width Below Egress Minimum",
                     "category": "Life Safety & Egress",
                     "severity": "CRITICAL",
-                    "measured": f"{measured_val}\" continuous clear width",
-                    "target": f"≥ {required_val}\" minimum (Occupancy > 50)",
-                    "delta": f"-{round(required_val - measured_val, 1)}\"",
-                    "citation": "The minimum corridor width shall be not less than 44 inches (1118 mm) where serving an occupant load of 50 or more.",
-                    "remedy": "Relocate non-bearing partition 10 inches west to achieve 44.5\" continuous clear path."
+                    "measured": f"{length_label(measured_val)} continuous clear width",
+                    "target": f"≥ {required_display} minimum (Occupancy > 50)" if not is_canada else f"≥ {required_display} screening benchmark",
+                    "delta": f"-{length_label(required_val - measured_val)}",
+                    "citation": j_rules["corridor_width"]["standard"] if is_canada else "The minimum corridor width shall be not less than 44 inches (1118 mm) where serving an occupant load of 50 or more.",
+                    "remedy": j_rules["corridor_width"]["remedy"] if is_canada else "Relocate non-bearing partition 10 inches west to achieve 44.5\" continuous clear path."
                 })
             else:
                 passed_checks.append({
-                    "code": "2024 IBC § 1020.2",
-                    "title": "Corridor Egress Width",
+                    "code": j_rules["corridor_width"]["citation"] if is_canada else "2024 IBC § 1020.2",
+                    "title": j_rules["corridor_width"]["title"] if is_canada else "Corridor Egress Width",
                     "status": "PASSED",
-                    "measured": f"{measured_val}\" clear width",
-                    "target": f"≥ {required_val}\""
+                    "measured": f"{length_label(measured_val)} clear width",
+                    "target": f"≥ {required_display}"
                 })
 
         # --- Check 3: Transaction Counter Accessible Section (ADA § 904.4.1) ---
         counter_fixture = next((f for f in blueprint_data.get("fixtures", []) if f.get("type") == "counter"), None)
         if counter_fixture:
-            if is_remediated:
+            if is_canada:
+                review_required.append({
+                    "code": j_rules["counter_height"]["citation"],
+                    "title": j_rules["counter_height"]["title"],
+                    "status": "REVIEW_REQUIRED",
+                    "measured": "Not evaluated against a national counter-height value",
+                    "target": j_rules["counter_height"]["standard"],
+                    "remedy": j_rules["counter_height"]["remedy"]
+                })
+            elif is_remediated:
                 passed_checks.append({
                     "code": "ADAAG § 904.4.1",
                     "title": "Accessible Transaction Surface",
@@ -129,13 +147,17 @@ class ComplianceEngine:
             if is_remediated:
                 score = 98
 
-        status = "PERMIT-READY" if score >= 90 else "NON-COMPLIANT"
+        status = "LOCAL REVIEW REQUIRED" if is_canada and score >= 90 else (
+            "PERMIT-READY" if score >= 90 else "NON-COMPLIANT"
+        )
 
         return {
             "score": score,
             "status": status,
+            "jurisdiction_scope_note": jurisdiction.get("scope_note"),
             "violations": violations,
             "passed_checks": passed_checks,
+            "review_required": review_required,
             "total_violations": len(violations),
             "critical_violations": sum(1 for v in violations if v["severity"] == "CRITICAL"),
             "is_remediated": is_remediated

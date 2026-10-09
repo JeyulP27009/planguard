@@ -82,8 +82,7 @@ async def health_check():
 @app.post("/api/audit")
 async def audit_blueprint(payload: BlueprintPayload):
     """
-    Executes a deterministic geometric clearance audit against 2024 IBC & ADA Standards.
-    Zero hallucination rate.
+    Executes deterministic geometric clearance screening against the selected jurisdiction.
     """
     try:
         results = compliance_engine.audit_floorplan(payload.blueprint, payload.is_remediated, jurisdiction_key=payload.jurisdiction)

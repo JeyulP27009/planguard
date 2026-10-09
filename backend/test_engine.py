@@ -53,6 +53,21 @@ def run_tests():
     assert audit_remediated["score"] >= 95, "Remediated score must be >= 95%"
     print(f"  [OK] Remediation Solver Passed: Remediated Score = {audit_remediated['score']}% (Status: {audit_remediated['status']})")
 
+    canada_preset = {
+        **mock_preset,
+        "fixtures": [{"type": "counter"}]
+    }
+    canada_audit = engine.audit_floorplan(canada_preset, jurisdiction_key="canada_national")
+    canada_codes = " ".join(item["code"] for item in canada_audit["violations"])
+    assert "NBC" in canada_codes, "Canadian audit must report the National Building Code baseline"
+    assert "1100 mm" in canada_audit["violations"][1]["target"], "Canadian corridor screening must use metric units"
+    assert canada_audit["jurisdiction_scope_note"], "Canadian audit must disclose local-code adoption limits"
+    assert canada_audit["review_required"][0]["status"] == "REVIEW_REQUIRED"
+    assert len(canada_audit["violations"]) == 2, "Unspecified counter standards must not be treated as violations"
+    canada_remediated = engine.audit_floorplan(canada_preset, is_remediated=True, jurisdiction_key="canada_national")
+    assert canada_remediated["status"] == "LOCAL REVIEW REQUIRED", "Canadian screening must not imply permit approval"
+    print("  [OK] Canada Jurisdiction Passed: Metric screening and provincial adoption caveat")
+
     # Test Gemini Brain Fallback & Synthesis
     print(">>> Testing Gemini Brain Engine...")
     brain = GeminiBrain(api_key="") # Local test

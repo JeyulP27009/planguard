@@ -36,7 +36,7 @@
 
       <!-- Center Jurisdiction Selector & City/Zip Search -->
       <div class="nav-center">
-        <div class="jurisdiction-pill" title="Active Municipal Building Code Jurisdiction">
+        <div class="jurisdiction-pill" title="Active Building Code Jurisdiction">
           <span class="tag">Jurisdiction</span>
           <select id="global-jurisdiction-select">
             <option value="san_francisco">San Francisco, CA (SFDBI & CBC Title 24)</option>
@@ -47,13 +47,14 @@
             <option value="miami_fl">Miami, FL (Miami-Dade RER & 2023 FBC)</option>
             <option value="denver_co">Denver, CO (Denver CPD & 2022 DBFC)</option>
             <option value="national_ibc">National Standard (2024 IBC & ADAAG)</option>
+            <option value="canada_national">Canada (National Building Code Model)</option>
           </select>
         </div>
 
         <!-- Dynamic City / Zip Code Search Resolver -->
-        <div class="city-search-box" title="Type any US city or 5-digit zip code to resolve local municipal building laws">
+        <div class="city-search-box" title="Search a US or Canadian city, state/province, or postal code">
           <svg class="icon icon-sm" style="color: var(--text-muted);" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="city-search-input" class="city-search-input" placeholder="City or Zip (e.g. Seattle, 98101)...">
+          <input type="text" id="city-search-input" class="city-search-input" placeholder="City or postal code (e.g. Seattle, M5V 2T6)...">
         </div>
       </div>
 
@@ -102,6 +103,7 @@
             <div class="j-indicator-text">
               <span class="j-indicator-label">Active Jurisdiction Regulatory Standard</span>
               <span class="j-indicator-val" id="dash-jurisdiction-name">San Francisco, CA • CBC Title 24 (SFDBI)</span>
+              <span class="j-indicator-note" id="jurisdiction-note">Verify local amendments before permit submission.</span>
             </div>
           </div>
         </div>
@@ -339,7 +341,7 @@
           <!-- Violations Tab -->
           <div class="inspector-content" id="violations-tab">
             <!-- Permitting Health Status Pill -->
-            <div class="health-badge" id="health-badge" style="margin-bottom: 8px;">
+            <div class="health-badge" id="health-badge">
               <svg class="health-ring-svg" viewBox="0 0 32 32">
                 <circle class="health-ring-circle" cx="16" cy="16" r="13" />
                 <circle class="health-ring-progress" id="health-ring-prog" cx="16" cy="16" r="13" />
@@ -351,7 +353,7 @@
             </div>
 
             <!-- Metric Cards -->
-            <div id="violations-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            <div id="violations-list"></div>
 
             <!-- Permit Packet Export & Actions -->
             <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
@@ -416,7 +418,7 @@
     <div class="modal-backdrop" id="export-modal">
       <div class="modal-window" style="width: 680px;">
         <div class="modal-head">
-          <h3>Export Certified CAD Artifacts & Permitting Submittal</h3>
+          <h3>Export CAD Artifacts & Pre-Flight Report</h3>
           <button class="btn-secondary" onclick="document.getElementById('export-modal').classList.remove('open')">✕</button>
         </div>
         <div class="modal-main">
@@ -435,7 +437,7 @@
             <div class="export-option-card" onclick="window.print()">
               <svg class="icon icon-lg" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               <h4>Print Submittal PDF</h4>
-              <p>Printable municipal pre-flight submittal document with PE seal, jurisdiction stamp, and hash.</p>
+              <p>Printable screening report showing the active jurisdiction and inspector findings.</p>
             </div>
           </div>
 
@@ -443,47 +445,48 @@
           <div style="background: #ffffff; color: #0f172a; padding: 20px; border-radius: 8px; font-family: 'Times New Roman', serif; border: 1px solid #cbd5e1;">
             <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 10px;">
               <h4 style="font-size: 15px; letter-spacing: 0.5px; margin: 0;" id="cert-authority-title">SAN FRANCISCO DEPT OF BUILDING INSPECTION (SFDBI)</h4>
-              <p style="font-size: 10px; color: #475569; margin: 4px 0 0;" id="cert-code-subtitle">PRE-FLIGHT COMPLIANCE CERTIFICATION • CBC 2022 TITLE 24</p>
+              <p style="font-size: 10px; color: #475569; margin: 4px 0 0;" id="cert-code-subtitle">PRE-FLIGHT SCREENING • CBC 2022 TITLE 24</p>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 10px; margin-bottom: 10px;">
               <div>
                 <strong>PROJECT:</strong> Artisan Roast & Bakery<br>
                 <strong>CLASSIFICATION:</strong> Assembly Group A-2<br>
-                <strong id="cert-location">LOCATION:</strong> San Francisco, CA
+                <strong>LOCATION:</strong> <span id="cert-location">San Francisco, CA</span>
               </div>
               <div style="text-align: right;">
-                <strong>STATUS:</strong> PRE-APPROVED (98%)<br>
+                <strong>STATUS:</strong> <span id="cert-status">SCREENING ONLY</span><br>
                 <strong>ENGINE:</strong> PlanGuard Dual-Brain v2.5<br>
-                <strong>VERIFICATION HASH:</strong> PG-7F8A2D9C-2026
+                <strong id="cert-id-label">SCREENING ID:</strong> PG-7F8A2D9C-2026
               </div>
             </div>
+            <p id="cert-scope-note" style="font-size: 9px; color: #475569; margin: 0 0 8px;">Verify requirements with the local authority having jurisdiction.</p>
             <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; text-align: left;">
               <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
-                <th style="padding: 4px;">STATUTORY CODE</th>
+                <th style="padding: 4px;">CODE REFERENCE</th>
                 <th style="padding: 4px;">REQUIREMENT</th>
                 <th style="padding: 4px;">STATUS</th>
               </tr>
               <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 4px;" id="cert-rule-1-code">CBC Title 24 § 11B-604.3</td>
-                <td style="padding: 4px;">Restroom 60" Turning Space</td>
-                <td style="padding: 4px; font-weight: 700; color: #059669;">PASSED (OUTWARD SWING)</td>
+                <td style="padding: 4px;" id="cert-rule-1-title">Restroom 60" Turning Space</td>
+                <td style="padding: 4px; font-weight: 700;" id="cert-rule-1-status">SEE INSPECTOR RESULTS</td>
               </tr>
               <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 4px;" id="cert-rule-2-code">2022 CBC § 1020.2</td>
-                <td style="padding: 4px;">Corridor Egress (≥ 44")</td>
-                <td style="padding: 4px; font-weight: 700; color: #059669;">PASSED (45.0" CLEAR)</td>
+                <td style="padding: 4px;" id="cert-rule-2-title">Corridor Egress (≥ 44")</td>
+                <td style="padding: 4px; font-weight: 700;" id="cert-rule-2-status">SEE INSPECTOR RESULTS</td>
               </tr>
               <tr>
                 <td style="padding: 4px;" id="cert-rule-3-code">CBC Title 24 § 11B-904</td>
-                <td style="padding: 4px;">Accessible Counter (≤ 34")</td>
-                <td style="padding: 4px; font-weight: 700; color: #059669;">PASSED (34.0" AFF SECTION)</td>
+                <td style="padding: 4px;" id="cert-rule-3-title">Accessible Counter (≤ 34")</td>
+                <td style="padding: 4px; font-weight: 700;" id="cert-rule-3-status">SEE INSPECTOR RESULTS</td>
               </tr>
             </table>
           </div>
         </div>
         <div class="modal-foot">
           <button class="btn-secondary" onclick="document.getElementById('export-modal').classList.remove('open')">Close</button>
-          <button class="btn-primary" onclick="window.print()">Print Official Submittal Packet</button>
+          <button class="btn-primary" onclick="window.print()">Print Pre-Flight Report</button>
         </div>
       </div>
     </div>

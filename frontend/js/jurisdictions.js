@@ -240,6 +240,40 @@
           remedy: "Provide accessible transaction counter section at 34\" AFF."
         }
       }
+    },
+    "canada_national": {
+      id: "canada_national",
+      name: "Canada",
+      state: "Canada",
+      authority: "Provincial or territorial authority having jurisdiction",
+      codeBase: "National Building Code of Canada 2020 (model code)",
+      accessibilityStandard: "NBC accessibility provisions and CSA B651 (local adoption varies)",
+      minCorridor: 1100 / 25.4,
+      minCorridorDisplay: "1100 mm",
+      turningClearanceDisplay: "1500 mm",
+      displayUnit: "mm",
+      scopeNote: "Model-code screening only; verify provincial or territorial adoption and local amendments.",
+      restroomEncroachmentAllowed: false,
+      rules: {
+        restroom_door: {
+          citation: "NBC accessibility provisions; verify the locally adopted edition",
+          title: "Accessible Turning-Space Clearance",
+          standard: "Screen for a 1500 mm turning space; verify door maneuvering clearances against the adopted code and CSA B651.",
+          remedy: "Review the door swing and maneuvering clearances against the applicable provincial or territorial code."
+        },
+        corridor_width: {
+          citation: "NBC egress and accessibility provisions; local adoption applies",
+          title: "Accessible Route / Corridor Clearance",
+          standard: "Screening benchmark: 1100 mm clear width. Confirm occupancy-specific requirements and local amendments.",
+          remedy: "Review the clear route width against the locally adopted building code and occupancy requirements."
+        },
+        counter_height: {
+          citation: "NBC accessibility provisions and applicable provincial or territorial accessibility standard",
+          title: "Accessible Service Counter",
+          standard: "Service-counter requirements vary by provincial or territorial adoption; verify the applicable code and CSA B651.",
+          remedy: "Confirm the required accessible counter height, length, and approach clearances with the local authority."
+        }
+      }
     }
   };
 
@@ -250,6 +284,21 @@
 
     // Check direct keys
     if (window.JURISDICTIONS[q]) return window.JURISDICTIONS[q];
+
+    const canadaSearchTerms = new Set([
+      "canada", "canadian", "ontario", "on", "quebec", "québec", "qc",
+      "nova scotia", "ns", "new brunswick", "nb", "manitoba", "mb",
+      "british columbia", "bc", "prince edward island", "pei", "pe",
+      "saskatchewan", "sk", "alberta", "ab", "newfoundland and labrador",
+      "nl", "northwest territories", "nt", "nunavut", "nu", "yukon", "yt",
+      "toronto", "montreal", "montréal", "ottawa", "vancouver", "calgary",
+      "edmonton", "winnipeg", "halifax", "quebec city", "québec city",
+      "saskatoon", "regina", "victoria", "st. john's", "fredericton",
+      "charlottetown", "yellowknife", "whitehorse", "iqaluit"
+    ]);
+    if (canadaSearchTerms.has(q) || /^[abceghjklmnprstvxy]\d[abceghjklmnprstvwxyz][ -]?\d[abceghjklmnprstvwxyz]\d$/i.test(query.trim())) {
+      return window.JURISDICTIONS.canada_national;
+    }
 
     // Check known city names
     for (const key in window.JURISDICTIONS) {

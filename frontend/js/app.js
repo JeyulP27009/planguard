@@ -105,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const globalJurisdictionSelect = document.getElementById('global-jurisdiction-select');
   const citySearchInput = document.getElementById('city-search-input');
   const dashJurisdictionName = document.getElementById('dash-jurisdiction-name');
+  const jurisdictionNote = document.getElementById('jurisdiction-note');
   const studioJurisdictionTag = document.getElementById('studio-jurisdiction-tag');
   const studioPlanTitle = document.getElementById('studio-plan-title');
 
@@ -205,21 +206,52 @@ document.addEventListener('DOMContentLoaded', () => {
   function setJurisdiction(jKey) {
     window.appState.currentJurisdiction = jKey;
     const j = window.JURISDICTIONS[jKey] || window.resolveJurisdiction(jKey);
+    if (globalJurisdictionSelect?.querySelector(`option[value="${jKey}"]`)) {
+      globalJurisdictionSelect.value = jKey;
+    }
     
     // Update Indicators
     if (dashJurisdictionName) dashJurisdictionName.textContent = `${j.name} • ${j.codeBase} (${j.authority})`;
+    if (jurisdictionNote) jurisdictionNote.textContent = j.scopeNote || 'Verify local amendments before permit submission.';
     if (studioJurisdictionTag) studioJurisdictionTag.textContent = `${j.name.split(',')[0]} • ${j.codeBase.split('(')[0]}`;
 
-    // Update Certificate Modal Elements
-    const certAuth = document.getElementById('cert-authority-title');
-    const certSub = document.getElementById('cert-code-subtitle');
-    const certLoc = document.getElementById('cert-location');
-    if (certAuth) certAuth.textContent = j.authority.toUpperCase();
-    if (certSub) certSub.textContent = `PRE-FLIGHT COMPLIANCE CERTIFICATION • ${j.codeBase.toUpperCase()}`;
-    if (certLoc) certLoc.innerHTML = `<strong>LOCATION:</strong> ${j.name}`;
+    updateCertificate(j);
 
     showToast(`Regulatory Jurisdiction: ${j.name}`);
     runAudit();
+  }
+
+  function updateCertificate(j) {
+    const isCanada = j.id === 'canada_national';
+    const certAuthority = document.getElementById('cert-authority-title');
+    const certSubtitle = document.getElementById('cert-code-subtitle');
+    const certLocation = document.getElementById('cert-location');
+    const certStatus = document.getElementById('cert-status');
+    const certScopeNote = document.getElementById('cert-scope-note');
+    const certIdLabel = document.getElementById('cert-id-label');
+    if (certAuthority) certAuthority.textContent = j.authority.toUpperCase();
+    if (certSubtitle) {
+      certSubtitle.textContent = `${isCanada ? 'CANADA MODEL-CODE SCREENING' : 'PRE-FLIGHT SCREENING'} • ${j.codeBase.toUpperCase()}`;
+    }
+    if (certLocation) certLocation.textContent = j.name;
+    if (certStatus) {
+      certStatus.textContent = isCanada ? 'MODEL-CODE SCREENING ONLY' : 'SCREENING REPORT • NOT AN APPROVAL';
+    }
+    if (certScopeNote) {
+      certScopeNote.textContent = j.scopeNote || 'Confirm local adoption, amendments, and project requirements with the authority having jurisdiction.';
+    }
+    if (certIdLabel) certIdLabel.textContent = isCanada ? 'SCREENING ID:' : 'REPORT ID:';
+
+    ['restroom_door', 'corridor_width', 'counter_height'].forEach((ruleKey, index) => {
+      const rule = j.rules[ruleKey];
+      const rowNumber = index + 1;
+      const code = document.getElementById(`cert-rule-${rowNumber}-code`);
+      const title = document.getElementById(`cert-rule-${rowNumber}-title`);
+      const status = document.getElementById(`cert-rule-${rowNumber}-status`);
+      if (code) code.textContent = rule.citation;
+      if (title) title.textContent = rule.title;
+      if (status) status.textContent = isCanada ? 'LOCAL REVIEW REQUIRED' : 'SEE INSPECTOR RESULTS';
+    });
   }
 
   // Real File Upload & CAD Ingestion Engine
@@ -458,6 +490,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const customX = window.appState.customWallX;
     const corridorInches = customX !== null ? (34.2 + (720 - customX) * 0.69) : (isRem ? 44.5 : 34.2);
     const corridorPasses = corridorInches >= (j.minCorridor || 44.0);
+    const formatLength = value => j.displayUnit === 'mm' ? `${Math.round(value * 25.4)} mm` : `${value.toFixed(1)}"`;
+    const turningSpace = j.turningClearanceDisplay || '60"';
 
     const rules = [
       {
@@ -465,7 +499,9 @@ document.addEventListener('DOMContentLoaded', () => {
         code: j.rules.restroom_door.citation,
         title: j.rules.restroom_door.title,
         status: isRem ? 'pass' : 'fail',
-        current: isRem ? 'Outward Swing Clear (0" Encroachment)' : 'Inward Swing Intruding 14.2" into 60" Cylinder',
+        current: isRem
+          ? `Outward Swing Clear (${j.displayUnit === 'mm' ? '0 mm' : '0"'} Encroachment)`
+          : `Inward Swing Intruding ${formatLength(14.2)} into ${turningSpace} Turning Space`,
         required: j.rules.restroom_door.standard,
         remedy: j.rules.restroom_door.remedy,
         zone: { x: 720, y: 360, w: 120, h: 180 }
@@ -475,8 +511,10 @@ document.addEventListener('DOMContentLoaded', () => {
         code: j.rules.corridor_width.citation,
         title: j.rules.corridor_width.title,
         status: corridorPasses ? 'pass' : 'fail',
-        current: `${corridorInches.toFixed(1)}" Continuous Clear Opening`,
-        required: `Minimum ${j.minCorridor || 44}" Clear Opening Required`,
+        current: `${formatLength(corridorInches)} Continuous Clear Opening`,
+        required: j.minCorridorDisplay
+          ? j.rules.corridor_width.standard
+          : `Minimum ${j.minCorridor || 44}" Clear Opening Required`,
         remedy: j.rules.corridor_width.remedy,
         zone: { x: 700, y: 220, w: 140, h: 140 }
       },
@@ -484,23 +522,33 @@ document.addEventListener('DOMContentLoaded', () => {
         id: 'counter_height',
         code: j.rules.counter_height.citation,
         title: j.rules.counter_height.title,
-        status: isRem ? 'pass' : 'fail',
-        current: isRem ? '34.0" AFF Lowered Transaction Tier' : '38.5" Uniform Counter Top Height',
+        status: j.id === 'canada_national' ? 'review' : isRem ? 'pass' : 'fail',
+        current: j.id === 'canada_national'
+          ? 'Local accessible-counter requirements need confirmation'
+          : isRem
+            ? `${formatLength(34.0)} AFF Lowered Transaction Tier`
+            : `${formatLength(38.5)} Uniform Counter Top Height`,
         required: j.rules.counter_height.standard,
         remedy: j.rules.counter_height.remedy,
         zone: { x: 490, y: 70, w: 350, h: 140 }
       }
     ];
 
-    const passCount = rules.filter(r => r.status === 'pass').length;
-    let score = Math.round((passCount / rules.length) * 100);
+    const evaluatedRules = rules.filter(r => r.status !== 'review');
+    const passCount = evaluatedRules.filter(r => r.status === 'pass').length;
+    let score = Math.round((passCount / evaluatedRules.length) * 100);
     if (isRem && score === 100) score = 98; // Realistic architectural score
 
-    updateScoreRing(score, score >= 90 ? 'PERMIT-READY' : 'NON-COMPLIANT');
+    const hasReviewItems = rules.some(r => r.status === 'review');
+    updateScoreRing(
+      score,
+      hasReviewItems ? 'LOCAL REVIEW REQUIRED' : score >= 90 ? 'PERMIT-READY' : 'NON-COMPLIANT',
+      hasReviewItems
+    );
     renderViolationCards(rules);
   }
 
-  function updateScoreRing(score, statusText) {
+  function updateScoreRing(score, statusText, requiresReview = false) {
     healthScore.textContent = `${score}%`;
     healthStatus.textContent = statusText;
 
@@ -509,7 +557,11 @@ document.addEventListener('DOMContentLoaded', () => {
     healthRing.style.strokeDasharray = `${circumference}`;
     healthRing.style.strokeDashoffset = `${offset}`;
 
-    if (score >= 90) {
+    if (requiresReview) {
+      healthRing.style.stroke = 'var(--cad-amber)';
+      healthBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+      healthStatus.style.color = 'var(--cad-amber)';
+    } else if (score >= 90) {
       healthRing.style.stroke = 'var(--cad-emerald)';
       healthBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
       healthStatus.style.color = 'var(--cad-emerald)';
@@ -529,6 +581,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const iconSvg = r.status === 'pass'
         ? `<svg class="icon icon-sm" style="color: var(--cad-emerald);" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`
+        : r.status === 'review'
+          ? `<svg class="icon icon-sm" style="color: var(--cad-amber);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
         : `<svg class="icon icon-sm" style="color: var(--cad-crimson);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
 
       card.innerHTML = `
@@ -545,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="v-actions">
           <button class="action-btn-sm" data-action="locate">Locate in CAD</button>
-          <button class="action-btn-sm primary" data-action="remedy">${r.status === 'pass' ? 'Remediated' : 'Apply AI Fix'}</button>
+          <button class="action-btn-sm primary" data-action="remedy">${r.status === 'pass' ? 'Remediated' : r.status === 'review' ? 'Review locally' : 'Apply AI Fix'}</button>
         </div>
         <div class="citation-toggle">View Statutory Text & Remedy ▼</div>
         <div class="citation-body">
@@ -562,6 +616,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Remedy Button
       card.querySelector('[data-action="remedy"]').addEventListener('click', () => {
+        if (r.status === 'review') {
+          showToast('Confirm this requirement with the local authority having jurisdiction.');
+          return;
+        }
         if (!window.appState.isRemediated) {
           remediateToggle.checked = true;
           window.appState.isRemediated = true;
@@ -601,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Assistant Typing Indicator
     const typingBubble = appendBubble('assistant', 'Consulting Gemini 2.5 Flash spatial reasoning model...');
+    const activeJurisdiction = window.JURISDICTIONS[window.appState.currentJurisdiction];
 
     // Call Backend or Fallback Neural Cache
     fetch('/api/gemini/analyze', {
@@ -610,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'X-Gemini-Key': window.appState.geminiKey
       },
       body: JSON.stringify({
-        prompt: `Active Plan: ${window.PRESETS[window.appState.currentPresetKey].name}. Active Jurisdiction: ${window.JURISDICTIONS[window.appState.currentJurisdiction].name}. Question: ${text}`
+        prompt: `Active Plan: ${window.PRESETS[window.appState.currentPresetKey].name}. Active Jurisdiction: ${activeJurisdiction.name}. Code basis: ${activeJurisdiction.codeBase}. Accessibility basis: ${activeJurisdiction.accessibilityStandard}. Scope: ${activeJurisdiction.scopeNote || 'Confirm local code adoption and amendments.'} Question: ${text}`
       })
     })
     .then(res => res.json())
@@ -622,10 +681,15 @@ document.addEventListener('DOMContentLoaded', () => {
     .catch(() => {
       typingBubble.remove();
       // Built-in Architectural Reasoning Engine Fallback
-      const responses = {
-        corridor: `Under ${window.JURISDICTIONS[window.appState.currentJurisdiction].codeBase}, corridors serving an occupant load ≥ 50 require 44" clear width. Your plan initially measured 34.2", which represents an illegal 9.8" constriction. Shift interior gypsum partition 10" to achieve 44.5" compliance.`,
-        door: `Under ${window.JURISDICTIONS[window.appState.currentJurisdiction].accessibilityStandard}, single-occupant accessible toilet rooms strictly forbid inward door swing encroachment into the 60" turning cylinder. Solution: Invert hinge to swing outward into corridor with 18" pull-side latch clearance.`,
-        counter: `Under ${window.JURISDICTIONS[window.appState.currentJurisdiction].codeBase}, accessible service counters must not exceed 34-36" AFF with min 36" length and 27" high clear knee space underneath.`
+      const jurisdiction = window.JURISDICTIONS[window.appState.currentJurisdiction];
+      const responses = jurisdiction.id === 'canada_national' ? {
+        corridor: `The ${jurisdiction.codeBase} is a model code, and provincial or territorial adoption may differ. This screening uses an 1100 mm corridor benchmark; the plan measures about 869 mm. Confirm the occupancy-specific requirement and local amendments with the authority having jurisdiction.`,
+        door: `Use the ${jurisdiction.accessibilityStandard} as a starting point, not a permit determination. The screening checks a 1500 mm turning space; verify door maneuvering clearances against the locally adopted code.`,
+        counter: `Accessible service-counter requirements vary by province or territory. Confirm the required height, length, and approach clearances with the locally adopted code and applicable CSA B651 provisions.`
+      } : {
+        corridor: `Under ${jurisdiction.codeBase}, corridors serving an occupant load ≥ 50 require 44" clear width. Your plan initially measured 34.2", which represents an illegal 9.8" constriction. Shift interior gypsum partition 10" to achieve 44.5" compliance.`,
+        door: `Under ${jurisdiction.accessibilityStandard}, single-occupant accessible toilet rooms strictly forbid inward door swing encroachment into the 60" turning cylinder. Solution: Invert hinge to swing outward into corridor with 18" pull-side latch clearance.`,
+        counter: `Under ${jurisdiction.codeBase}, accessible service counters must not exceed 34-36" AFF with min 36" length and 27" high clear knee space underneath.`
       };
       
       let reply = responses.corridor;
@@ -663,5 +727,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initialize Default State
+  updateCertificate(window.JURISDICTIONS[window.appState.currentJurisdiction]);
   loadCurrentPreset();
 });

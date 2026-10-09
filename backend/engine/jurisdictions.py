@@ -1,6 +1,5 @@
 """
-PlanGuard Municipal & State Jurisdictional Regulatory Matrix
-Provides statutory building codes and amendments tailored to specific US cities and states.
+PlanGuard jurisdictional regulatory matrix.
 """
 
 from typing import Dict, Any
@@ -227,6 +226,36 @@ JURISDICTIONS: Dict[str, Dict[str, Any]] = {
                 "title": "Accessible Counter Elevation",
                 "standard": "Maximum 36 inches AFF for minimum 36 inches continuous length.",
                 "remedy": "Provide accessible transaction counter section at 34\" AFF."
+            }
+        }
+    },
+    "canada_national": {
+        "id": "canada_national",
+        "name": "Canada",
+        "state": "Canada",
+        "authority": "Provincial or territorial authority having jurisdiction",
+        "code_base": "National Building Code of Canada 2020 (model code)",
+        "accessibility_standard": "NBC accessibility provisions and CSA B651 (local adoption varies)",
+        "min_corridor_inches": 1100 / 25.4,
+        "scope_note": "Model-code screening only; verify provincial or territorial adoption and local amendments.",
+        "rules": {
+            "restroom_door": {
+                "citation": "NBC accessibility provisions; verify the locally adopted edition",
+                "title": "Accessible Turning-Space Clearance",
+                "standard": "Screen for a 1500 mm turning space; verify door maneuvering clearances against the adopted code and CSA B651.",
+                "remedy": "Review the door swing and maneuvering clearances against the applicable provincial or territorial code."
+            },
+            "corridor_width": {
+                "citation": "NBC egress and accessibility provisions; local adoption applies",
+                "title": "Accessible Route / Corridor Clearance",
+                "standard": "Screening benchmark: 1100 mm clear width. Confirm occupancy-specific requirements and local amendments.",
+                "remedy": "Review the clear route width against the locally adopted building code and occupancy requirements."
+            },
+            "counter_height": {
+                "citation": "NBC accessibility provisions and applicable provincial or territorial accessibility standard",
+                "title": "Accessible Service Counter",
+                "standard": "Service-counter requirements vary by provincial or territorial adoption; verify the applicable code and CSA B651.",
+                "remedy": "Confirm the required accessible counter height, length, and approach clearances with the local authority."
             }
         }
     }
